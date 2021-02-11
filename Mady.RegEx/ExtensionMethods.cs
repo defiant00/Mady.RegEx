@@ -13,9 +13,10 @@ namespace Mady.RegEx
 		/// </summary>
 		/// <typeparam name="T">The type of the object to map to.</typeparam>
 		/// <param name="match">The regular expression <c>Match</c> object to map.</param>
+		/// <param name="processors">A dictionary of processing functions keyed by match names, to process the data during mapping.</param>
 		/// <param name="obj">An existing object to map on to.</param>
 		/// <returns>An object of type T with the <c>Match</c> mapped on to it.</returns>
-		public static T MapTo<T>(this Match match, T obj = null) where T : class?, new()
+		public static T MapTo<T>(this Match match, Dictionary<string, Func<string, object>>? processors = null, T obj = null) where T : class?, new()
 		{
 			var result = obj ?? new T();
 
@@ -25,7 +26,7 @@ namespace Mady.RegEx
 				var group = match.Groups[i];
 				if (group.Captures.Count == 1)
 				{
-					result.SetProperty(group.Name, group.Value);
+					result.SetProperty(processors, group.Name, group.Name, group.Value);
 				}
 				else
 				{
@@ -33,7 +34,7 @@ namespace Mady.RegEx
 					{
 						if (capture != null)
 						{
-							result.SetProperty(group.Name, capture.Value);
+							result.SetProperty(processors, group.Name, group.Name, capture.Value);
 						}
 					}
 				}
@@ -42,7 +43,7 @@ namespace Mady.RegEx
 			return result;
 		}
 
-		private static void SetProperty(this object obj, string propertyName, string value)
+		private static void SetProperty(this object obj, Dictionary<string, Func<string, object>>? processors, string fullPropertyName, string propertyName, string value)
 		{
 			int index = propertyName.IndexOf("__");
 			if (index > -1)
@@ -60,7 +61,7 @@ namespace Mady.RegEx
 						propObj = Activator.CreateInstance(propType);
 						prop.SetValue(obj, propObj);
 					}
-					propObj?.SetProperty(remainingPropName, value);
+					propObj?.SetProperty(processors, fullPropertyName, remainingPropName, value);
 				}
 			}
 			else
@@ -86,18 +87,24 @@ namespace Mady.RegEx
 									prop.SetValue(obj, collection);
 								}
 
-								var collValue = value == null ? null : Convert.ChangeType(value, collType);
+								var collValue = GetProcessValue(processors, fullPropertyName, value, collType);
 								addMethod.Invoke(collection, new[] { collValue });
 							}
 						}
 					}
 					else
 					{
-						var propValue = value == null ? null : Convert.ChangeType(value, propType);
+						var propValue = GetProcessValue(processors, fullPropertyName, value, propType);
 						prop.SetValue(obj, propValue);
 					}
 				}
 			}
+		}
+
+		private static object GetProcessValue(Dictionary<string, Func<string, object>>? processors, string fullPropertyName, string value, Type type)
+		{
+			var processedValue = (processors != null && processors.ContainsKey(fullPropertyName)) ? processors[fullPropertyName](value) : value;
+			return Convert.ChangeType(processedValue, type);
 		}
 	}
 }
