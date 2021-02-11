@@ -16,7 +16,7 @@ namespace Mady.RegEx
 		/// <param name="processors">A dictionary of processing functions keyed by match names, to process the data during mapping.</param>
 		/// <param name="obj">An existing object to map on to.</param>
 		/// <returns>An object of type T with the <c>Match</c> mapped on to it.</returns>
-		public static T MapTo<T>(this Match match, Dictionary<string, Func<string, object>>? processors = null, T obj = null) where T : class?, new()
+		public static T MapTo<T>(this Match match, Dictionary<string, Func<string, object?>>? processors = null, T obj = null) where T : class?, new()
 		{
 			var result = obj ?? new T();
 
@@ -43,7 +43,7 @@ namespace Mady.RegEx
 			return result;
 		}
 
-		private static void SetProperty(this object obj, Dictionary<string, Func<string, object>>? processors, string fullPropertyName, string propertyName, string value)
+		private static void SetProperty(this object obj, Dictionary<string, Func<string, object?>>? processors, string fullPropertyName, string propertyName, string value)
 		{
 			int index = propertyName.IndexOf("__");
 			if (index > -1)
@@ -101,10 +101,10 @@ namespace Mady.RegEx
 			}
 		}
 
-		private static object GetProcessValue(Dictionary<string, Func<string, object>>? processors, string fullPropertyName, string value, Type type)
+		private static object? GetProcessValue(Dictionary<string, Func<string, object?>>? processors, string fullPropertyName, string value, Type type)
 		{
 			var processedValue = (processors != null && processors.ContainsKey(fullPropertyName)) ? processors[fullPropertyName](value) : value;
-			return Convert.ChangeType(processedValue, type);
+			return processedValue == null ? null : Convert.ChangeType(processedValue, type);
 		}
 	}
 }
